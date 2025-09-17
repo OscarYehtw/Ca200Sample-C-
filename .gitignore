@@ -1,0 +1,13 @@
+# Ignore Visual Studio temporary files
+.vs/
+*.vscode/
+*.user
+*.suo
+*.cache
+*.log
+
+# Build results
+bin/
+obj/
+Debug/
+Release/
