@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="graylevels.csv" />
+  </ItemGroup>
+
+  <ItemGroup>
     <COMReference Include="CA200SRVRLib">
       <WrapperTool>tlbimp</WrapperTool>
       <VersionMinor>1</VersionMinor>
@@ -18,6 +22,16 @@
       <Isolated>false</Isolated>
       <EmbedInteropTypes>true</EmbedInteropTypes>
     </COMReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="graylevels.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Ports" Version="9.0.9" />
   </ItemGroup>
 
 </Project>

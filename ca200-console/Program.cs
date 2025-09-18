@@ -1,19 +1,48 @@
 ﻿// See https://aka.ms/new-console-template for more information
-//Console.WriteLine("Hello, World!");
-using CA200SRVRLib;   // 需先在專案引用 COM: CA200Srvr 1.1 Type Library
+using CA200SRVRLib;   // Must first add reference to COM: CA200Srvr 1.1 Type Library
 using System;
 using System.IO;
+using System.IO.Ports;
+using System.Threading;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Ca200SampleConsole
 {
+    class GrayLevel
+    {
+        public int Gray { get; set; }
+        public string Brightness { get; set; }
+    }
+
     class Program
     {
         static void Main(string[] args)
         {
+            // Default COM1, can be overridden by parameter: .\ca200-console.exe -p COM3
+            string comPort = "COM1";
+            for (int i = 0; i < args.Length - 1; i++)
+            {
+                if (args[i] == "-p")
+                {
+                    comPort = args[i + 1];
+                }
+            }
+
             string csvFile = "measurements.csv";
-            int sampleCount = 20;
+            string grayFile = "graylevels.csv";
             bool emulate = false;
+
+            // === Read graylevels.csv (Gray, Brightness) ===
+            var grayLines = File.ReadAllLines(grayFile);
+            var header = grayLines[0].Trim();
+            var grayData = grayLines.Skip(1)
+                        .Select(line => line.Split(','))
+                        .Select(parts => new GrayLevel
+                        {
+                            Gray = int.Parse(parts[0]),
+                            Brightness = parts.Length > 1 ? parts[1] : ""
+                        })
+                        .ToList();
 
             Ca200? objCa200 = null;
             Ca? objCa = null;
@@ -37,19 +66,39 @@ namespace Ca200SampleConsole
                 emulate = true;
             }
 
-            // 建立 CSV 檔，加入標題列
+            using (SerialPort sp = new SerialPort(comPort, 115200, Parity.None, 8, StopBits.One))
+
+            // Create CSV file and write header
             using (var writer = new StreamWriter(csvFile))
             {
-                    writer.WriteLine("Index,Lv,x,y,T,duv");
+                // Open UART
+                sp.Open();
 
-                    // 連續量測 N 筆
-                    for (int i = 1; i <= sampleCount; i++)
+                writer.WriteLine("Index,Lv,x,y,T,duv");
+
+                // Measure N data points continuously
+                for (int i = 0; i < grayData.Count; i++)
                     {
+                        int gray = grayData[i].Gray;
                         double Lv, x, y, T, duv;
+
+                        // === 1. Prepare RGB value (Gray = R=G=B) ===
+                        int rgb = (gray << 16) | (gray << 8) | gray;  // RGB888
+    
+                        Console.WriteLine($"Gray[{gray}]");
+
+                        string cmd = $"./b1_fct -p {comPort} shell lcd fill 0x{rgb:X6}\r\n";
+                        
+                        // === 2. Send UART command ===
+                        sp.Write(cmd);
+                        Console.WriteLine($"[{i}] Send: {cmd.Trim()}");
+
+                        // === 3. Delay 100ms to wait for LCD update ===
+                        Thread.Sleep(100);
 
                         if (!emulate && objCa != null && objProbe != null)
                         {
-                            // 真實量測
+                            // Real measurement
                             objCa!.Measure();
                             Lv = objProbe.Lv;
                             x = objProbe.sx;
@@ -59,7 +108,7 @@ namespace Ca200SampleConsole
                         }
                         else
                         {
-                            // 模擬數據
+                            // Simulated data
                             Lv = 150 + rand.NextDouble() * 50;       // 150 ~ 200 cd/m²
                             x = 0.30 + rand.NextDouble() * 0.02;     // 0.30 ~ 0.32
                             y = 0.32 + rand.NextDouble() * 0.02;     // 0.32 ~ 0.34
@@ -67,14 +116,27 @@ namespace Ca200SampleConsole
                             duv = rand.NextDouble() * 0.01;          // 0 ~ 0.01
                         }
 
-                        writer.WriteLine($"{i},{Lv:0.00},{x:0.0000},{y:0.0000},{T:0},{duv:0.0000}");
+                        writer.WriteLine($"{i},{Lv:0.00}f,{x:0.0000},{y:0.0000},{T:0},{duv:0.0000}");
                         Console.WriteLine($"[{i}] Lv={Lv:0.00}, x={x:0.0000}, y={y:0.0000}, T={T:0}, duv={duv:0.0000}");
-                    }
+
+                        // Update Brightness column in graylevels.csv
+                        grayData[i].Brightness = Lv.ToString("0.00") + "f";
+                }
             }
 
-            Console.WriteLine($"Measurement completed. Results saved to {csvFile}");
+            // Write back graylevels.csv (keep header)
+            using (var writer = new StreamWriter(grayFile))
+            {
+                writer.WriteLine(header);
+                foreach (var g in grayData)
+                {
+                    writer.WriteLine($"{g.Gray},{g.Brightness}");
+                }
+            }
 
-            // 結束前釋放連線
+            Console.WriteLine($"Measurement completed. Results saved to {csvFile} and updated {grayFile}");
+
+            // Release connection before exit
             if (!emulate && objCa != null)
             {
                 objCa.RemoteMode = 0;
