@@ -259,13 +259,13 @@ namespace Ca200SampleConsole
             Console.WriteLine("Gamma calculation finished.");
             #endif
 
-            // === Output gamma_cal.csv ===
-            using (var writer = new StreamWriter("gamma_cal.csv"))
+            // === Output gamma_out.csv ===
+            using (var writer = new StreamWriter("gamma_out.csv"))
             {
                 writer.WriteLine("Index,Value");
                 for (int i = 0; i < temp.Length; i++)
                 {
-                    writer.WriteLine($"{i},{temp[i]}");
+                    writer.WriteLine($"{i},{temp[i]:X}");
                 }
             }
 
