@@ -9,7 +9,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="gamma.csv" />
     <None Remove="graylevels.csv" />
+    <None Remove="vcom.csv" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,13 +27,25 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="gamma.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="graylevels.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="vcom.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="System.IO.Ports" Version="9.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="ST7701S_NB_Gamma">
+      <HintPath>..\..\..\Gamma_luminance\ST7701S_NB_Gamma.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>
