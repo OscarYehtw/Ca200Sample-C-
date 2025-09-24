@@ -29,7 +29,11 @@ class GammaValidation
 
         // Mode setting: true = align automatically to Lmax, false = use fixed maximum luminance
         bool autoLmax = true;
-        double fixedLmax = 200.0;   // Custom maximum luminance if needed
+        
+        if (lumValues.Max() == 0)
+            autoLmax = false;
+
+        double fixedLmax = 250.0;   // Custom maximum luminance if needed
         double Lmax = autoLmax ? lumValues.Max() : fixedLmax;
 
         // === Calculate standard gamma 2.2 grayscale curve ===

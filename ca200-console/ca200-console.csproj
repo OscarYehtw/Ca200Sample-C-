@@ -6,6 +6,7 @@
     <RootNamespace>ca200_console</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
 
   <ItemGroup>
@@ -48,6 +49,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="CASDK2Net">
+      <HintPath>..\cswrapper\CASDK2Net.dll</HintPath>
+      <Aliases></Aliases>
+      <Private></Private>
+      <EmbedInteropTypes></EmbedInteropTypes>
+      <SpecificVersion></SpecificVersion>
+    </Reference>
     <Reference Include="ST7701S_NB_Gamma">
       <HintPath>..\..\..\Gamma_luminance\ST7701S_NB_Gamma.dll</HintPath>
     </Reference>
