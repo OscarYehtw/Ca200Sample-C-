@@ -1,4 +1,6 @@
-﻿using System;
+﻿#define DEBUG_ENABLED
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -35,12 +37,15 @@ namespace Ca200SampleConsole.Devices
             catch (Exception ex)
             {
                 Console.WriteLine("CA-200 connection failed: " + ex.Message);
+#if DEBUG_ENABLED
                 Console.WriteLine("Switching to EMULATION MODE.");
+#endif
                 Emulate = true;
             }
         }
 
-        public (double Lv, double x, double y, double T, double duv) Measure()
+        //public (double Lv, double x, double y, double T, double duv) Measure()
+        public (double Lv, double x, double y, double T, double duv) Measure(int gray)
         {
             if (!Emulate && ca != null && probe != null)
             {
@@ -49,9 +54,13 @@ namespace Ca200SampleConsole.Devices
             }
             else
             {
+                double Lmax = 250.0;
+                double lv = Lmax * Math.Pow(gray / 255.0, 2.4);
+
                 var rand = new Random();
                 return (
-                    150 + rand.NextDouble() * 50,
+                    //150 + rand.NextDouble() * 50,
+                    lv,
                     0.30 + rand.NextDouble() * 0.02,
                     0.32 + rand.NextDouble() * 0.02,
                     6500 + rand.Next(-200, 200),

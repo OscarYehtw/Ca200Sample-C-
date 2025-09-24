@@ -21,14 +21,17 @@ namespace Ca200SampleConsole
     {
         static void Main(string[] args)
         {
-            string ca310File = "ca-310.csv";
-            string grayFile = "graylevels.csv";
-            string csvFile = "measurements.csv";
-            string vcomFile = "vcom.csv";
+            //string ca310File = "ca-310.csv";
+            string grayFile  = "graylevels.csv";
+            string vcomFile  = "vcom.csv";
             string gammaFile = "gamma.csv";
-            string gammaoutFile = "gamma_out.csv";
-            string curvecsvFile = "gamma_curve.csv";
-            string curvepngFile = "gamma_curve.png";
+
+            string csvFileBefore = "measurements_before_gamma.csv";
+            string csvFileAfter  = "measurements_after_gamma.csv";
+            string gammaoutFile  = "gamma_out.csv";
+            string curvecsvFile  = "gamma_curve.csv";
+            string curvepngFile  = "gamma_curve.png";
+
             bool emulate = false;
 
             // Default COM1, can be overridden by parameter: .\ca200-console.exe -p COM3
@@ -52,8 +55,7 @@ namespace Ca200SampleConsole
             var backlight = new BacklightController(comPort);
             var service = new MeasurementService(ca200, backlight);
 
-            service.RunMeasurements(grayData, csvFile);
-
+            service.RunMeasurements(grayData, csvFileBefore);
             // Write back graylevels.csv (keep header)
             using (var writer = new StreamWriter(grayFile))
             {
@@ -65,7 +67,7 @@ namespace Ca200SampleConsole
             }
 
 #if DEBUG_ENABLED
-            Console.WriteLine($"Measurement completed. Results saved to {csvFile} and updated {grayFile}");
+            Console.WriteLine($"Measurement completed. Results saved to {csvFileBefore} and updated {grayFile}");
 #endif
 
 #if DEBUG_ENABLED
@@ -102,7 +104,7 @@ namespace Ca200SampleConsole
             engine.CalGammaVoltage();
 
             // === Read measurements.csv ===
-            string[] luminanceLines = File.ReadAllLines(csvFile);
+            string[] luminanceLines = File.ReadAllLines(csvFileBefore);
             var lumValues = luminanceLines
                 .Skip(1)
                 .Select(line => line.Split(',')[1])   // Take Lux values
@@ -127,6 +129,15 @@ namespace Ca200SampleConsole
             // === Run Gamma calculation ===
             int[] results = engine.Calculate();
 
+            // Send gamma table to LCD Controller
+            using (var controller = new BacklightController(comPort))
+            {
+                controller.Open();
+                controller.SetGamma(results);
+                Thread.Sleep(100);
+                controller.Close();
+            }
+
 #if DEBUG_ENABLED
             Console.WriteLine("Gamma calculation finished.");
 #endif
@@ -143,10 +154,19 @@ namespace Ca200SampleConsole
 #if DEBUG_ENABLED
             Console.WriteLine("Results saved to gamma_cal.csv");
 #endif
+            service.RunMeasurements(grayData, csvFileAfter);
+            // Write back graylevels.csv (keep header)
+            using (var writer = new StreamWriter(grayFile))
+            {
+                writer.WriteLine(header);
+                foreach (var g in grayData)
+                {
+                    writer.WriteLine($"{g.Gray},{g.Brightness}");
+                }
+            }
 
-            GammaValidation.ValidateGamma(ca310File, gamma: 2.2, tolerance: 0.1);
-            //GammaValidation.ValidateGamma(grayFile, gamma: 2.2, tolerance: 0.1);
-
+            //GammaValidation.ValidateGamma(ca310File, curvecsvFile, gamma: 2.4, tolerance: 0.1);
+            GammaValidation.ValidateGamma(grayFile, curvecsvFile, gamma: 2.4, tolerance: 0.1);
             GammaPlotter.PlotFromCsv(curvecsvFile, curvepngFile);
 
             ca200.Release();

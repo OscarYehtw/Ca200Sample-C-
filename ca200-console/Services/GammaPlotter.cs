@@ -1,8 +1,9 @@
-﻿using System;
+﻿using ScottPlot;
+using System;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using ScottPlot;
 
 namespace Ca200SampleConsole.Services
 {
@@ -10,9 +11,9 @@ namespace Ca200SampleConsole.Services
     {
         public static void PlotFromCsv(string csvFile, string outputFile)
         {
-            // === 1. 讀取 CSV ===
+            // === Read CSV ===
             var lines = File.ReadAllLines(csvFile)
-                .Skip(1) // 跳過標題列
+                .Skip(1) // skip the header row
                 .Select(line => line.Split(','))
                 .ToArray();
 
@@ -20,7 +21,7 @@ namespace Ca200SampleConsole.Services
             double[] measured = lines.Select(l => double.Parse(l[1], CultureInfo.InvariantCulture)).ToArray();
             double[] ideal = lines.Select(l => double.Parse(l[2], CultureInfo.InvariantCulture)).ToArray();
 
-            // === 2. 建立繪圖 ===
+            // === Create plot ===
             var plt = new ScottPlot.Plot();
 
             // Measured scatter
@@ -35,15 +36,32 @@ namespace Ca200SampleConsole.Services
             idealScatter.MarkerSize = 5;
             idealScatter.LegendText = "Ideal Gamma";
 
-            // === 3. 設定標題/軸 ===
+            // === set title and axes ===
             plt.Title("Gamma Curve");
             plt.XLabel("Gray Level");
             plt.YLabel("Luminance");
             plt.Legend.IsVisible = true;
 
-            // === 4. 輸出圖片 ===
+            // Set axis limits to 0–255 for both X and Y
+            //plt.Axes.SetLimits(0, 255, 0, 255);
+
+            // === Export image ===
             plt.SavePng(outputFile, 800, 600);
             Console.WriteLine($"Gamma curve saved to {outputFile}");
+
+            // === Show the picture ===
+            try
+            {
+                var psi = new ProcessStartInfo(outputFile)
+                {
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Can't open the PNG: {ex.Message}");
+            }
         }
     }
 }

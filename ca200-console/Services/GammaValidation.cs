@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 class GammaValidation
 {
-    public static void ValidateGamma(string csvFile, double gamma = 2.2, double tolerance = 0.1)
+    public static void ValidateGamma(string csvFile, string curveFile, double gamma = 2.2, double tolerance = 0.1)
     {
         // === Read GrayLevel and measured luminance ===
         string[] lines = File.ReadAllLines(csvFile);
@@ -54,7 +54,7 @@ class GammaValidation
         Console.WriteLine(pass ? "\n=== RESULT: PASS ===" : "\n=== RESULT: FAIL ===");
 
         // === Output to CSV (for plotting in Excel) ===
-        using (var writer = new StreamWriter("gamma_curve.csv"))
+        using (var writer = new StreamWriter(curveFile))
         {
             writer.WriteLine($"GrayLevel,Measured,IdealGamma{gamma}");
             for (int i = 0; i < lumValues.Length; i++)

@@ -37,12 +37,15 @@ namespace Ca200SampleConsole.Services
 
                 Thread.Sleep(100);
 
-                var (Lv, x, y, T, duv) = ca200.Measure();
+                //var (Lv, x, y, T, duv) = ca200.Measure();
+                var (Lv, x, y, T, duv) = ca200.Measure(gray);
                 writer.WriteLine($"{i},{Lv:0.00}f,{x:0.0000},{y:0.0000},{T:0},{duv:0.0000}");
                 grayData[i].Brightness = Lv.ToString("0.00") + "f";
             }
 
             backlight.Stop();
+            backlight.Close();
+
         }
     }
 }
