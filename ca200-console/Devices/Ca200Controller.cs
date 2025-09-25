@@ -43,7 +43,8 @@ namespace Ca200SampleConsole.Devices
         const int WHITE = 3;
 
         public bool Emulate { get; private set; }
-        //static bool autoconnectflag = true; // auro or manual
+        static bool autoconnectflag = true; // auro or manual
+        static bool triggerfinish = true;
 
         public Ca200Controller(bool emulate = false)
         {
@@ -70,7 +71,7 @@ namespace Ca200SampleConsole.Devices
                 GetErrorMessage(objCa.get_Memory(ref objMemory));
                 GetErrorMessage(objCa.get_SingleProbe(ref objProbe));
                 DefaultSetting();
-                //autoconnectflag = true;
+                autoconnectflag = true;
             }
             else
             {
@@ -129,6 +130,19 @@ namespace Ca200SampleConsole.Devices
 
         public void Release()
         {
+            while (!triggerfinish)
+            {
+                System.Threading.Thread.Sleep(10);  //wait for completion of trigger measurement
+            }
+            //Disconnect CA-410
+            if (autoconnectflag)
+            {
+                GetErrorMessage(objCa200.AutoDisconnect()); //Disconnect probe connected automatically
+            }
+            else
+            {
+                GetErrorMessage(objCa200.DisconnectAll());  //Disconnect probe connected manually
+            }
         }
 
         ///<summary>

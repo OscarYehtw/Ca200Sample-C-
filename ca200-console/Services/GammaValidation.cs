@@ -41,7 +41,9 @@ class GammaValidation
         for (int i = 0; i < lumValues.Length; i++)
         {
             double norm = grayLevels[i] / 255.0;   // Normalize GrayLevel to 0~1
-            ideal[i] = Math.Pow(norm, gamma) * Lmax;
+            //ideal[i] = Math.Pow(norm, gamma) * Lmax;
+            double value = Math.Pow(norm, gamma) * Lmax;
+            ideal[i] = Math.Truncate(value * 1000) / 1000.0;
         }
 
         // === Compare to see if it is within the error tolerance ===
