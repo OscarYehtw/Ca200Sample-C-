@@ -1,5 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 //#define DEBUG_ENABLED
+//#define RGBW_DEMONSTRATION
 
 using Ca200SampleConsole.Models;
 using Ca200SampleConsole.Devices;
@@ -21,6 +22,10 @@ namespace Ca200SampleConsole
     {
         static void Main(string[] args)
         {
+#if RGBW_DEMONSTRATION
+            string grayFile     = "graylevelsrgbw.csv";
+            string measuredrgbw = "measured_rgbw.csv";
+#else
             //string ca310File = "ca-310.csv";
             string grayFile  = "graylevels.csv";
             string vcomFile  = "vcom.csv";
@@ -29,6 +34,7 @@ namespace Ca200SampleConsole
             string csvFileBefore = "measurements_before_gamma.csv";
             string csvFileAfter  = "measurements_after_gamma.csv";
             string gammaoutFile  = "gamma_out.csv";
+#endif
             string curvecsvFile  = "gamma_curve.csv";
             string curvepngFile  = "gamma_curve.png";
 
@@ -55,7 +61,13 @@ namespace Ca200SampleConsole
             var backlight = new BacklightController(comPort);
             var service = new MeasurementService(ca200, backlight);
 
+#if RGBW_DEMONSTRATION
+            service.RunMeasureRGBW(grayData, measuredrgbw);
+            GammaValidation.ValidateGammaRGBW(measuredrgbw, curvecsvFile, gamma: 2.2, tolerance: 0.3, minGrayForCheck: 1);
+            GammaPlotter.PlotFromCsvRGBW(curvecsvFile, curvepngFile);
+#else
             service.RunMeasurements(grayData, csvFileBefore);
+
             // Write back graylevels.csv (keep header)
             using (var writer = new StreamWriter(grayFile))
             {
@@ -168,7 +180,7 @@ namespace Ca200SampleConsole
             //GammaValidation.ValidateGamma(ca310File, curvecsvFile, gamma: 2.4, tolerance: 0.1);
             GammaValidation.ValidateGamma(grayFile, curvecsvFile, gamma: 2.4, tolerance: 0.1);
             GammaPlotter.PlotFromCsv(curvecsvFile, curvepngFile);
-
+#endif
             ca200.Release();
         }
     }
