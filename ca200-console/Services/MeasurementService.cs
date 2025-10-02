@@ -115,7 +115,7 @@ namespace Ca200SampleConsole.Services
                         panel.BackColor = color;
                     }));
 
-                    Thread.Sleep(100); // Allow time for display to update
+                    Thread.Sleep(50); // Allow time for display to update
 
                     var (Lv, x, y, T, duv) = ca200.Measure(gray);
 

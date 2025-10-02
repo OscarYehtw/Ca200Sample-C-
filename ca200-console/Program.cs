@@ -1,6 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 //#define DEBUG_ENABLED
-//#define RGBW_DEMONSTRATION
+#define RGBW_DEMONSTRATION
 
 using Ca200SampleConsole.Models;
 using Ca200SampleConsole.Devices;
@@ -25,6 +25,7 @@ namespace Ca200SampleConsole
 #if RGBW_DEMONSTRATION
             string grayFile     = "graylevelsrgbw.csv";
             string measuredrgbw = "measured_rgbw.csv";
+            string resultFile   = "gamma_result.csv";
 #else
             //string ca310File = "ca-310.csv";
             string grayFile  = "graylevels.csv";
@@ -34,8 +35,8 @@ namespace Ca200SampleConsole
             string csvFileBefore = "measurements_before_gamma.csv";
             string csvFileAfter  = "measurements_after_gamma.csv";
             string gammaoutFile  = "gamma_out.csv";
-#endif
             string curvecsvFile  = "gamma_curve.csv";
+#endif
             string curvepngFile  = "gamma_curve.png";
 
             bool emulate = false;
@@ -63,8 +64,8 @@ namespace Ca200SampleConsole
 
 #if RGBW_DEMONSTRATION
             service.RunMeasureRGBW(grayData, measuredrgbw);
-            GammaValidation.ValidateGammaRGBW(measuredrgbw, curvecsvFile, gamma: 2.2, tolerance: 0.3, minGrayForCheck: 1);
-            GammaPlotter.PlotFromCsvRGBW(curvecsvFile, curvepngFile);
+            GammaValidation.ValidateGammaRGBW(measuredrgbw, resultFile, targetGamma: 2.2, tolerance: 0.3);
+            GammaPlotter.PlotFromCsvRGBW(measuredrgbw, resultFile, curvepngFile);
 #else
             service.RunMeasurements(grayData, csvFileBefore);
 

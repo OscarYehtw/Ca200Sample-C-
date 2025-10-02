@@ -1,4 +1,5 @@
-﻿using ScottPlot;
+﻿using MathNet.Numerics.Distributions;
+using ScottPlot;
 using System;
 using System.Diagnostics;
 using System.Globalization;
@@ -64,25 +65,37 @@ namespace Ca200SampleConsole.Services
             }
         }
 
-        public static void PlotFromCsvRGBW(string csvFile, string outputFile)
+        public static void PlotFromCsvRGBW(string measuredFile, string resultFile, string outputFile)
         {
             // === Read CSV ===
-            var lines = File.ReadAllLines(csvFile)
+            var lines = File.ReadAllLines(measuredFile)
                 .Skip(1) // skip header
                 .Select(line => line.Split(','))
                 .ToList();
 
-            // Group by channel
-            var groups = lines.GroupBy(l => l[0]);
+            // === Read Gamma Result CSV ===
+            var gammaLines = File.ReadAllLines(resultFile)
+                .SkipWhile(l => !l.StartsWith("Channel")) // skip until header
+                .Skip(1) // skip header row
+                .TakeWhile(l => !l.StartsWith("---")) // until End Summary
+                .Select(l => l.Split(','))
+                .ToDictionary(l => l[0], l => new
+                {
+                    ActualGamma = double.Parse(l[1], CultureInfo.InvariantCulture),
+                    RmsError = double.Parse(l[2], CultureInfo.InvariantCulture),
+                    Result = l[3]
+                });
+
+            // Group by Channel
+            var groups = lines.GroupBy(l => l[1]);
 
             var plt = new ScottPlot.Plot();
 
             foreach (var group in groups)
             {
                 string channel = group.Key; // R, G, B, W
-                double[] x = group.Select(l => double.Parse(l[1], CultureInfo.InvariantCulture)).ToArray(); // GrayLevel
-                double[] measured = group.Select(l => double.Parse(l[2], CultureInfo.InvariantCulture)).ToArray(); // Measured
-                double[] ideal = group.Select(l => double.Parse(l[3], CultureInfo.InvariantCulture)).ToArray(); // Ideal
+                double[] gray = group.Select(l => double.Parse(l[2], CultureInfo.InvariantCulture)).ToArray(); // Gray
+                double[] measured = group.Select(l => double.Parse(l[3], CultureInfo.InvariantCulture)).ToArray(); // Lv
 
                 // Color settings
                 var color = channel switch
@@ -95,20 +108,27 @@ namespace Ca200SampleConsole.Services
                 };
 
                 // Measured curve
-                var measuredScatter = plt.Add.Scatter(x, measured, color);
-                measuredScatter.LegendText = $"{channel} Measured";
+                var measuredScatter = plt.Add.Scatter(gray, measured, color);
 
-                // Ideal curve (dashed)
-                //var idealScatter = plt.Add.Scatter(x, ideal);
-                //idealScatter.LinePattern = LinePattern.Dashed;
-                //idealScatter.LegendText = $"{channel} Ideal";
+                if (gammaLines.TryGetValue(channel, out var ginfo))
+                {
+                    measuredScatter.LegendText = $"{channel} γ={ginfo.ActualGamma:0.000}, RMS={ginfo.RmsError:0.0000}, Result={ginfo.Result}";
+                }
+                else
+                {
+                    measuredScatter.LegendText = $"{channel} (no gamma data)";
+                }
+
+                //measuredScatter.LegendText = $"{channel} γ=2.2";
             }
 
             // === Title & Axis ===
             plt.Title("RGBW Gamma Curves");
             plt.XLabel("Gray Level");
             plt.YLabel("Luminance");
+
             plt.Legend.IsVisible = true;
+            plt.Legend.Alignment = Alignment.UpperLeft;
 
             // Fix X-axis 0–255
             plt.Axes.SetLimitsX(0, 255);

@@ -105,8 +105,8 @@ namespace Ca200SampleConsole.Devices
                 GetErrorMessage(objProbe.get_Lv(ref Lv));
                 GetErrorMessage(objProbe.get_sx(ref sx));
                 GetErrorMessage(objProbe.get_sy(ref sy));
-                GetErrorMessage(objProbe.get_T(ref T));
-                GetErrorMessage(objProbe.get_duv(ref duv));
+                //GetErrorMessage(objProbe.get_T(ref T));
+                //GetErrorMessage(objProbe.get_duv(ref duv));
                 //GetErrorMessage(objProbe.get_X(ref X));
                 //GetErrorMessage(objProbe.get_Y(ref Y));
                 //GetErrorMessage(objProbe.get_Z(ref Z));
