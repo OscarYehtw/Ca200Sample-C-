@@ -1,4 +1,6 @@
-﻿using MathNet.Numerics.Distributions;
+﻿#define DEBUG_ENABLED
+
+using MathNet.Numerics.Distributions;
 using ScottPlot;
 using System;
 using System.Diagnostics;
@@ -48,8 +50,9 @@ namespace Ca200SampleConsole.Services
 
             // === Export image ===
             plt.SavePng(outputFile, 800, 600);
+#if DEBUG_ENABLED
             Console.WriteLine($"Gamma curve saved to {outputFile}");
-
+#endif
             // === Show the picture ===
             try
             {
@@ -65,7 +68,7 @@ namespace Ca200SampleConsole.Services
             }
         }
 
-        public static void PlotFromCsvRGBW(string measuredFile, string resultFile, string outputFile)
+        public static void PlotFromCsvRGBW(string sku, string measuredFile, string resultFile, string xyResultFile, string outputFile)
         {
             // === Read CSV ===
             var lines = File.ReadAllLines(measuredFile)
@@ -86,7 +89,22 @@ namespace Ca200SampleConsole.Services
                     Result = l[3]
                 });
 
-            // Group by Channel
+            // === Read targetxy_result.csv ===
+            // Format: Channel,X,Y,Result
+            var xyResults = File.ReadAllLines(xyResultFile)
+                .Skip(1)
+                .Select(l => l.Split(','))
+                .Where(p => p.Length >= 10 && p[0].Equals(sku, StringComparison.OrdinalIgnoreCase) && p[1] == "255")
+                .Select(p => new
+                {
+                    Channel = "W",  // 白色
+                    X = double.Parse(p[3], CultureInfo.InvariantCulture), // x
+                    Y = double.Parse(p[4], CultureInfo.InvariantCulture), // y
+                    Result = p[9]  // PASS/FAIL
+                })
+                .FirstOrDefault();
+
+            // Group measured data by Channel
             var groups = lines.GroupBy(l => l[1]);
 
             var plt = new ScottPlot.Plot();
@@ -107,19 +125,21 @@ namespace Ca200SampleConsole.Services
                     _ => Colors.Black
                 };
 
-                // Measured curve
                 var measuredScatter = plt.Add.Scatter(gray, measured, color);
 
-                if (gammaLines.TryGetValue(channel, out var ginfo))
+                // Gamma LegendText
+                string legendText = gammaLines.TryGetValue(channel, out var ginfo)
+                    ? $"{channel} γ={ginfo.ActualGamma:0.000}, RMS={ginfo.RmsError:0.0000}, Result={ginfo.Result}"
+                    : $"{channel} (no gamma data)";
+
+                // Target xy LegendText
+                if (xyResults != null && channel == "W")
                 {
-                    measuredScatter.LegendText = $"{channel} γ={ginfo.ActualGamma:0.000}, RMS={ginfo.RmsError:0.0000}, Result={ginfo.Result}";
-                }
-                else
-                {
-                    measuredScatter.LegendText = $"{channel} (no gamma data)";
+                    legendText += $"\nW (x,y)=({xyResults.X:F4},{xyResults.Y:F4}), Result={xyResults.Result}";
+                    //legendText += xyResults.Result.Equals("PASS", StringComparison.OrdinalIgnoreCase) ? " V" : " X";
                 }
 
-                //measuredScatter.LegendText = $"{channel} γ=2.2";
+                measuredScatter.LegendText = legendText;
             }
 
             // === Title & Axis ===
@@ -135,8 +155,9 @@ namespace Ca200SampleConsole.Services
 
             // === Output image ===
             plt.SavePng(outputFile, 1000, 800);
+#if DEBUG_ENABLED
             Console.WriteLine($"Gamma curve saved to {outputFile}");
-
+#endif
             try
             {
                 var psi = new ProcessStartInfo(outputFile)

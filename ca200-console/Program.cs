@@ -23,9 +23,11 @@ namespace Ca200SampleConsole
         static void Main(string[] args)
         {
 #if RGBW_DEMONSTRATION
+            string targetxyFile = "targetxy.csv";
             string grayFile     = "graylevelsrgbw.csv";
             string measuredrgbw = "measured_rgbw.csv";
             string resultFile   = "gamma_result.csv";
+            string xyresultFile = "targetxy_result.csv";
 #else
             //string ca310File = "ca-310.csv";
             string grayFile  = "graylevels.csv";
@@ -43,6 +45,9 @@ namespace Ca200SampleConsole
 
             // Default COM1, can be overridden by parameter: .\ca200-console.exe -p COM3
             string comPort = args.Contains("-p") ? args[Array.IndexOf(args, "-p") + 1] : "COM1";
+
+            // Default SKU = "silver", Options: Silver / Black / Warm Gold
+            string sku = args.Contains("-sku") ? args[Array.IndexOf(args, "-sku") + 1] : "Silver";
 
             // === Read graylevels.csv (Gray, Brightness) ===
             var grayLines = File.ReadAllLines(grayFile);
@@ -65,7 +70,8 @@ namespace Ca200SampleConsole
 #if RGBW_DEMONSTRATION
             service.RunMeasureRGBW(grayData, measuredrgbw);
             GammaValidation.ValidateGammaRGBW(measuredrgbw, resultFile, targetGamma: 2.2, tolerance: 0.3);
-            GammaPlotter.PlotFromCsvRGBW(measuredrgbw, resultFile, curvepngFile);
+            GammaValidation.ValidateWhitePoint(sku, measuredrgbw, targetxyFile, xyresultFile);
+            GammaPlotter.PlotFromCsvRGBW(sku, measuredrgbw, resultFile, xyresultFile, curvepngFile);
 #else
             service.RunMeasurements(grayData, csvFileBefore);
 

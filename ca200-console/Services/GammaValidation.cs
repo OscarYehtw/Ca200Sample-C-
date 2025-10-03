@@ -181,6 +181,96 @@ class GammaValidation
         return N > 0 ? Math.Sqrt(sumSquaredError / N) : double.NaN;
     }
 
+    // === New: Read targetxy.csv and check whether the white point is within SPEC range ===
+    public static bool ValidateWhitePoint(string sku, string measuredFile, string targetFile, string resultFile)
+    {
+#if DEBUG_ENABLED
+        Console.WriteLine("\n=== Checking White Point Spec ===");
+#endif
+        // 1. Read targetxy.csv
+        var lines = File.ReadAllLines(targetFile);
+        var header = lines[0].Split(',');
+
+        // Find column indexes
+        int skuIdx = Array.IndexOf(header, "SKU");
+        int xMinIdx = Array.IndexOf(header, "x_min");
+        int xMaxIdx = Array.IndexOf(header, "x_max");
+        int yMinIdx = Array.IndexOf(header, "y_min");
+        int yMaxIdx = Array.IndexOf(header, "y_max");
+
+        if (skuIdx < 0 || xMinIdx < 0 || xMaxIdx < 0 || yMinIdx < 0 || yMaxIdx < 0)
+        {
+#if DEBUG_ENABLED
+            Console.WriteLine($"Invalid header format in {targetFile}.");
+#endif
+            return false;
+        }
+
+        // 2. Find the spec for the corresponding SKU
+        var specLine = lines.Skip(1)
+                            .Select(l => l.Split(','))
+                            .FirstOrDefault(p => p[skuIdx].Trim().Equals(sku, StringComparison.OrdinalIgnoreCase));
+
+        if (specLine == null)
+        {
+#if DEBUG_ENABLED
+            Console.WriteLine($"SKU {sku} not found in {targetFile}.");
+ #endif
+            return false;
+        }
+
+        double xMin = double.Parse(specLine[xMinIdx], CultureInfo.InvariantCulture);
+        double xMax = double.Parse(specLine[xMaxIdx], CultureInfo.InvariantCulture);
+        double yMin = double.Parse(specLine[yMinIdx], CultureInfo.InvariantCulture);
+        double yMax = double.Parse(specLine[yMaxIdx], CultureInfo.InvariantCulture);
+
+        // 3. Read the White channel from measured_rgbw.csv
+        var whitePoints = File.ReadAllLines(measuredFile)
+            .Skip(1)
+            .Select(l => l.Split(','))
+            .Where(p => p.Length >= 6 && p[1].Trim().Equals("W", StringComparison.OrdinalIgnoreCase))
+            .Select(p => new
+            {
+                Gray = int.Parse(p[2].Trim(), CultureInfo.InvariantCulture),
+                Lv = double.Parse(p[3].Trim(), CultureInfo.InvariantCulture),
+                x = double.Parse(p[4].Trim(), CultureInfo.InvariantCulture),
+                y = double.Parse(p[5].Trim(), CultureInfo.InvariantCulture)
+            })
+            .ToList();
+
+        if (whitePoints.Count == 0)
+        {
+#if DEBUG_ENABLED
+            Console.WriteLine("No White channel data found in measured file.");
+#endif
+            return false;
+        }
+
+        // Find the white point with maximum luminance
+        var maxWhite = whitePoints.OrderByDescending(w => w.Lv).First();
+
+#if DEBUG_ENABLED
+        Console.WriteLine($"Max White (Gray={maxWhite.Gray}, Lv={maxWhite.Lv:F2}): x={maxWhite.x:F4}, y={maxWhite.y:F4}");
+        Console.WriteLine($"Spec Range ({sku}): x=[{xMin:F4}, {xMax:F4}], y=[{yMin:F4}, {yMax:F4}]");
+#endif
+        bool pass = (maxWhite.x >= xMin && maxWhite.x <= xMax &&
+                     maxWhite.y >= yMin && maxWhite.y <= yMax);
+
+#if DEBUG_ENABLED
+        Console.WriteLine(pass ? "=== WHITE POINT RESULT: PASS ===" : "=== WHITE POINT RESULT: FAIL ===");
+#endif
+
+        // 4. Write result into targetxy_result.csv
+        using (var writer = new StreamWriter(resultFile, false)) // overwrite
+        {
+            writer.WriteLine("SKU,Gray,Lv,x,y,x_min,x_max,y_min,y_max,Result");
+            writer.WriteLine($"{sku},{maxWhite.Gray},{maxWhite.Lv:F4},{maxWhite.x:F4},{maxWhite.y:F4}," +
+                             $"{xMin:F4},{xMax:F4},{yMin:F4},{yMax:F4},{(pass ? "PASS" : "FAIL")}");
+        }
+
+        return pass;
+    }
+
     /// <summary>
     /// Validate and calculate the Actual Gamma and RMS error for each channel.
     /// </summary>
@@ -217,27 +307,31 @@ class GammaValidation
 
         if (lines.Count == 0)
         {
+#if DEBUG_ENABLED
             Console.WriteLine("No valid data parsed from CSV. Please check file encoding/format.");
+#endif
             return;
         }
 
         // Group: each channel separately
         var groups = lines.GroupBy(x => x.Channel);
         var results = new List<GammaResult>();
+#if DEBUG_ENABLED
         bool overallPass = true;
-
+#endif
         // Write detailed curve fitting data
         using (var writer = new StreamWriter(resultFile))
         {
-            // 输出 CSV 头部: Channel,GrayLevel,Measured,Fitted
+            // Output CSV header: Channel,GrayLevel,Measured,Fitted
             //writer.WriteLine("Channel,GrayLevel,Measured,Fitted");
 
+#if DEBUG_ENABLED
             Console.WriteLine("\n------------------------------------------------------------");
             Console.WriteLine($"| Target Gamma: {targetGamma:F2} (Tolerance: ±{tolerance:F2})                    |");
             Console.WriteLine("------------------------------------------------------------");
             Console.WriteLine("| Channel | Actual Gamma | RMS Error (Normalized) | Result |");
             Console.WriteLine("------------------------------------------------------------");
-
+#endif
             foreach (var group in groups)
             {
                 string channel = group.Key;
@@ -250,8 +344,10 @@ class GammaValidation
 
                 if (deltaY <= 0)
                 {
+#if DEBUG_ENABLED
                     Console.WriteLine($"| {channel,-7} | N/A          | N/A                    | FAIL   |");
                     overallPass = false;
+#endif
                     continue;
                 }
 
@@ -265,8 +361,10 @@ class GammaValidation
 
                 if (double.IsNaN(actualGamma))
                 {
+#if DEBUG_ENABLED
                     Console.WriteLine($"| {channel,-7} | N/A          | N/A                    | FAIL   |");
                     overallPass = false;
+#endif
                     continue;
                 }
 
@@ -276,7 +374,9 @@ class GammaValidation
                 // 5. Check result
                 double gammaDeviation = Math.Abs(actualGamma - targetGamma);
                 bool channelPass = gammaDeviation <= tolerance;
+#if DEBUG_ENABLED
                 if (!channelPass) overallPass = false;
+#endif
 
 #if false
                 // 6. Write curve data (Measured and Fitted)
@@ -301,7 +401,9 @@ class GammaValidation
                     Y_black = Y_black,
                     Y_white = Y_white
                 });
+#if DEBUG_ENABLED
                 Console.WriteLine($"| {channel,-7} | {actualGamma:F3}        | {rmsError:F6}               | {resultStr}   |");
+#endif
             }
 
             // === Write Summary results (as per your requirement 1) ===
@@ -315,11 +417,15 @@ class GammaValidation
             }
             writer.WriteLine("--- End Summary ---");
 
+#if DEBUG_ENABLED
             Console.WriteLine("------------------------------------------------------------");
+#endif
         }
 
+#if DEBUG_ENABLED
         Console.WriteLine(overallPass ? "\n=== FINAL RESULT: PASS ===" : "\n=== FINAL RESULT: FAIL ===");
         Console.WriteLine($"Comparison curves (Measured vs Fitted) saved to {resultFile} (FileTag: gamma_curve.csv)");
+#endif
     }
 
     public static void ValidateGamma(string csvFile, string curveFile, double gamma = 2.2, double tolerance = 0.1)
@@ -360,18 +466,17 @@ class GammaValidation
         }
 
         // === Compare to see if it is within the error tolerance ===
+#if DEBUG_ENABLED
         bool pass = true;
         for (int i = 0; i < lumValues.Length; i++)
         {
             double diff = Math.Abs(lumValues[i] - ideal[i]) / (ideal[i] == 0 ? 1 : ideal[i]);
-#if DEBUG_ENABLED
             Console.WriteLine($"Gray {grayLevels[i],3}: Measured={lumValues[i]:0.00}, Ideal={ideal[i]:0.00}, Error={diff * 100:0.0}%");
-#endif
             if (diff > tolerance) pass = false;
         }
 
         Console.WriteLine(pass ? "\n=== RESULT: PASS ===" : "\n=== RESULT: FAIL ===");
-
+#endif
         // === Output to CSV (for plotting in Excel) ===
         using (var writer = new StreamWriter(curveFile))
         {
